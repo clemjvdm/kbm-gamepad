@@ -1,2 +1,6 @@
+### This project is still under development.
+
+
 - [ ] Which mice to read? All mice? Let user select mouse?
-- [ ] Allow mapping of keybinds to buttons -> easy config file?
+- [ ] Support for key maps
+- [ ] Support for toml config file
