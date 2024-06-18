@@ -2,6 +2,8 @@ use evdev::Key;
 use std::collections::HashMap;
 use lazy_static::lazy_static;
 
+// TODO: Maybe macros to not have to write the button options both here and in config struct, in
+// which case maybe an enum can be used over a hash map?
 lazy_static! {
     pub static ref VALID_BUTTONS: HashMap<&'static str, Key> = HashMap::from([
         ("EAST", evdev::Key::BTN_EAST),

@@ -1,0 +1,21 @@
+[gamepad_settings]
+range = 1024
+fuzz = 0
+flat = 0
+resolution = 0
+
+[bindings]
+north = "w"
+east = "d"
+south = "s"
+west = "a"
+dpad_up = "up"
+dpad_down = "down"
+dpad_left = "left"
+dpad_right = "right"
+select = "x"
+start = "c"
+l1 = "q"
+l2 = "leftshift"
+r1 = "e"
+r2 = "f"
