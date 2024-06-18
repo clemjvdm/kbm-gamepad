@@ -1,6 +1,10 @@
 ### This project is still under development.
 
 
-- [ ] Which mice to read? All mice? Let user select mouse?
-- [ ] Support for key maps
-- [ ] Support for toml config file
+- [ ] Read from all mouse inputs
+- [ ] Config file serde default values
+- [ ] Make it possible to have no keybinds
+- [x] Support for key maps
+- [ ] Support for mouse y axis (optional)
+- [x] Support for toml config file
+- [x] Let mouse control L joystick
