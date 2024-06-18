@@ -1,18 +1,18 @@
+mod translators;
+use translators::{ KeyTranslator, RelAxisTranslator};
 mod keys;
+mod event_handler;
+use event_handler::EventHandler;
 mod button;
 mod config;
 use config::Config;
 use config::GamepadSettings;
 use button::VALID_BUTTONS;
-use evdev::{
-    Device, uinput::VirtualDeviceBuilder, uinput::VirtualDevice, AbsInfo, AbsoluteAxisType, UinputAbsSetup, InputEventKind, RelativeAxisType, InputEvent, EventType, Key
-};
-use std::collections::HashMap;
+use evdev::{Device, uinput::VirtualDeviceBuilder, uinput::VirtualDevice, AbsInfo, AbsoluteAxisType, UinputAbsSetup};
 use toml;
-use std::io::Write;
 use std::path::Path;
 use std::thread;
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::mpsc::channel;
 
 
 
@@ -31,17 +31,6 @@ fn main() {
         config = Config::default();
     }
 
-    // TESTING ONLY CODE SHOULD BE REMOVED 
-    let mut file = std::fs::OpenOptions::new()
-                                .write(true)
-                                .create(true)
-                                .truncate(true)
-                                .open("config.toml")
-                                .unwrap();
-    let toml = toml::to_string(&config).unwrap();
-    file.write_all(toml.as_bytes()).unwrap();
-    // TESTING ONLY CODE SHOULD BE REMOVED 
-
     // TODO: get all mice
     /* let mut devices: Vec<Device> = Vec::new();
     for device in read_dir(DEVICES_PATH).unwrap().map(|device| Device::open(device.unwrap().path()).unwrap()) {
@@ -50,48 +39,49 @@ fn main() {
         }
     } */
     // let mut gamepad = create_gamepad(&config.gamepad_settings).unwrap(); // virtual gamepad
-    let gamepad = Arc::new(Mutex::new(create_gamepad(&config.gamepad_settings).unwrap())); // virtual gamepad
-                                                                         
-    let mut keyboard = Device::open(KEYBOARD_PATH).unwrap();
-    let bind_map = config.bindings.to_map();
+    
 
-    let gamepad1 = Arc::clone(&gamepad);
-    let mouse_thread = thread::spawn(move || { 
-        let range = 1024;
-        let mut mouse = Device::open(MOUSE_PATH).unwrap(); // mouse
-        let mut mouse_x_pos: i32 = 0;
+    // create virtual gamepad
+    let gamepad = create_gamepad(&config.gamepad_settings).unwrap(); // virtual gamepad
+
+    // handler thread reads events from rx and handles them
+    let (tx, rx) = channel();
+    let handler_thread = thread::spawn(move || {
+        let mut event_handler = EventHandler::new(gamepad, rx);
+        let bind_map = config.bindings.to_map();
+        event_handler.add_translator(Box::new(KeyTranslator::new(bind_map)));
+        event_handler.add_translator(Box::new(RelAxisTranslator::new(
+                                        -(config.gamepad_settings.range/2),
+                                        config.gamepad_settings.range/2)));
+        event_handler.start();
+    });
+
+
+    // mouse thread reads mouse events and sends them in rs
+    let tx1 = tx.clone();
+    let mouse_thread = thread::spawn(move || {
+        let mut mouse = Device::open(MOUSE_PATH).unwrap();
         loop {
             for ev in mouse.fetch_events().unwrap() {
-                if ev.kind() == InputEventKind::RelAxis(RelativeAxisType::REL_X) {
-                   // handle_mouse_event(ev, &mut mouse_x_pos, &mut g, range);
-                    mouse_x_pos += ev.value();
-                    let mut mouse_event_x_pos = mouse_x_pos;
-                    if mouse_x_pos < -(range/2) { mouse_event_x_pos = -(range/2); }
-                    if mouse_x_pos > range/2 { mouse_event_x_pos = range/2; }
-                    let mut g = gamepad1.lock().unwrap();
-                    g.emit(&[InputEvent::new(EventType::ABSOLUTE, AbsoluteAxisType::ABS_X.0, mouse_event_x_pos)]).unwrap()
-                }
+                tx1.send(ev).unwrap();
             }
         }
     });
 
-    // TODO: leave the option of disabling kbd input
-    /*let gamepad2 = Arc::clone(&gamepad);
+    // kbd thread reads keyboard events and sends them in rs
+    let tx2 = tx.clone();
     let kbd_thread = thread::spawn(move || {
+        let mut keyboard = Device::open(KEYBOARD_PATH).unwrap();
         loop {
             for ev in keyboard.fetch_events().unwrap() {
-                if let InputEventKind::Key(input_key) = ev.kind() {
-                    if let Some(output_key) = bind_map.get(&input_key) {
-                        let mut g = gamepad2.lock().unwrap();
-                        g.emit(&[InputEvent::new(EventType::KEY, output_key.0, ev.value())]).unwrap();
-                    }
-                }
+                tx2.send(ev).unwrap();
             }
         }
-    });*/
+    });
 
     mouse_thread.join().unwrap();
-    // kbd_thread.join().unwrap();
+    kbd_thread.join().unwrap();
+    handler_thread.join().unwrap();
 }
 
 fn create_gamepad(settings: &GamepadSettings) -> std::io::Result<VirtualDevice> {
@@ -116,19 +106,5 @@ fn create_gamepad(settings: &GamepadSettings) -> std::io::Result<VirtualDevice> 
     Ok(device)
 }
 
-// TODO: fix these for cleaner code
-fn handle_mouse_event(event: InputEvent, mouse_pos: &mut i32, gamepad: &mut MutexGuard<'static, VirtualDevice>, range: i32) {
-            *mouse_pos += event.value();
-            if *mouse_pos < -(range/2) { *mouse_pos = -(range/2); }
-            if *mouse_pos > range/2 { *mouse_pos = range/2; }
-            gamepad.emit(&[InputEvent::new(EventType::ABSOLUTE, AbsoluteAxisType::ABS_X.0, *mouse_pos)]).unwrap()
-}
 
 
-fn handle_kbd_event(event: InputEvent, binds: &HashMap<Key, Key>, gamepad: &mut MutexGuard<'static, VirtualDevice>) {
-        if let InputEventKind::Key(input_key) = event.kind() {
-            if let Some(output_key) = binds.get(&input_key) {
-                gamepad.emit(&[InputEvent::new(EventType::KEY, output_key.0, event.value())]).unwrap();
-            }
-        }
-}
