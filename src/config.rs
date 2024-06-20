@@ -2,6 +2,10 @@ use evdev::Key;
 use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use super::keys::KbdString;
+use crate::CONFIG_FILE_PATH;
+use std::path::Path;
+use toml;
+use toml::de::Error;
 
 // TODO: Default values for all settings (serde default)
 
@@ -19,6 +23,15 @@ impl Config {
             gamepad_settings: GamepadSettings::default(),
             bindings: Bindings::default(),
         }
+    }
+
+    pub fn exists() -> bool {
+        return Path::new(CONFIG_FILE_PATH).exists()
+    }
+
+    pub fn load() -> Result<Config, Error> {
+        let file_str = std::fs::read_to_string(CONFIG_FILE_PATH).unwrap();
+        toml::from_str(&file_str)
     }
 }
 

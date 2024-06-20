@@ -1,42 +1,80 @@
 use evdev::{InputEvent, uinput::VirtualDevice};
 use std::sync::mpsc::Receiver;
+use std::{thread, thread::JoinHandle};
+use std::any::Any;
+use std::fmt;
+use std::sync::{Arc, Mutex};
 
-pub trait Translator {
+pub trait Translator: Send {
     fn translate(&mut self, ev: InputEvent) -> Option<InputEvent>;
 }
 
-// TODO: Maybe use 'translators: Vec<Box<Translator>>' over current implementation
+#[derive(Debug)]
+pub enum EventHandlerError {
+    ThreadNotStartedError,
+    ThreadRunningError,
+}
+
+impl fmt::Display for EventHandlerError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::ThreadNotStartedError => {
+                write!(f, "Attemped to stop non-started thread.")
+            }
+            Self::ThreadRunningError => {
+                write!(f, "Attempted to add translator while event handler's thread was already running")
+            }
+            
+        }
+    }
+}
+
 pub struct EventHandler {
-    gamepad: VirtualDevice,
-    translators: Vec<Box<dyn Translator>>,
-    event_queue: Receiver<InputEvent>,
-    stopped: bool,
+    thread: Option<JoinHandle<()>>,
+    gamepad: Arc<Mutex<VirtualDevice>>,
+    translators: Arc<Mutex<Vec<Box<dyn Translator>>>>,
 }
 
 impl EventHandler {
-    pub fn new(gamepad: VirtualDevice, event_queue: Receiver<InputEvent>) -> Self {
+    pub fn new(gamepad: VirtualDevice) -> Self {
         EventHandler {
-            gamepad,
-            translators: Vec::new(),
-            event_queue,
-            stopped: true,
+            thread: None,
+            gamepad: Arc::new(Mutex::new(gamepad)),
+            translators: Arc::new(Mutex::new(Vec::new())),
         }
     }
 
-    pub fn add_translator(&mut self, translator: Box<dyn Translator>) {
-        self.translators.push(translator);
+    pub fn start(&mut self, rx: Receiver<InputEvent>) {
+        let translators = Arc::clone(&self.translators);
+        let gamepad = Arc::clone(&self.gamepad);
+        let thread = thread::spawn(move || {
+            loop {
+                let ev = rx.recv().unwrap();
+                let mut translated_ev: Vec<InputEvent> = Vec::new();
+                for translator in translators.lock().unwrap().iter_mut() {
+                    translator.translate(ev).inspect(|ev| translated_ev.push(*ev));
+                }
+                gamepad.lock().unwrap().emit(&translated_ev).unwrap();
+            }
+
+        });
+        self.thread = Some(thread);
     }
 
-    pub fn start(&mut self) {
-        self.stopped = false;
-        while !self.stopped {
-            let ev = self.event_queue.recv().unwrap();
-            let mut translated_ev: Vec<InputEvent> = Vec::new();
-            for translator in self.translators.iter_mut() {
-                translator.translate(ev).inspect(|ev| translated_ev.push(*ev));
-            }
-            self.gamepad.emit(&translated_ev).unwrap();
+    pub fn add_translator(&mut self, translator: Box<dyn Translator>) -> Result<(),EventHandlerError> {
+        if let Ok(mut translators) = self.translators.try_lock() {
+            translators.push(translator);
+            Ok(())
+        } else {
+            Err(EventHandlerError::ThreadRunningError)
+        }
+    }
+
+    pub fn stop(self) -> Result<(), Box<dyn Any + Send + 'static>> {
+        if let Some(thread) = self.thread {
+            thread.join()
+        } else {
+            Err(Box::new(EventHandlerError::ThreadNotStartedError))
         }
     }
 }
-
