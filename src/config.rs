@@ -7,6 +7,7 @@ use super::keys::KbdString;
 
 #[derive(Serialize, Deserialize)]
 pub struct Config {
+    pub general_settings: GeneralSettings,
     pub gamepad_settings: GamepadSettings,
     pub bindings: Bindings,
 }
@@ -14,8 +15,24 @@ pub struct Config {
 impl Config {
     pub fn default() -> Self {
         Self {
+            general_settings: GeneralSettings::default(),
             gamepad_settings: GamepadSettings::default(),
             bindings: Bindings::default(),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct GeneralSettings {
+    read_mouse_events: bool,
+    read_kbd_events: bool,
+}
+
+impl GeneralSettings {
+    pub fn default() -> Self {
+        Self {
+            read_mouse_events: true,
+            read_kbd_events: false,
         }
     }
 }

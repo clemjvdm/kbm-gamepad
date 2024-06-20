@@ -1,3 +1,5 @@
+mod event_readers;
+use event_readers::KbdEventReader;
 mod translators;
 use translators::{ KeyTranslator, RelAxisTranslator};
 mod keys;
@@ -13,8 +15,8 @@ use toml;
 use std::path::Path;
 use std::thread;
 use std::sync::mpsc::channel;
-
-
+use event_readers::EventReader;
+use std::sync::Arc;
 
 const CONFIG_FILE_PATH: &str = "config.toml";
 const MOUSE_PATH: &str = "/dev/input/event13";
@@ -30,7 +32,7 @@ fn main() {
     } else {
         config = Config::default();
     }
-
+    
     // TODO: get all mice
     /* let mut devices: Vec<Device> = Vec::new();
     for device in read_dir(DEVICES_PATH).unwrap().map(|device| Device::open(device.unwrap().path()).unwrap()) {
@@ -68,19 +70,10 @@ fn main() {
         }
     });
 
-    // kbd thread reads keyboard events and sends them in rs
-    let tx2 = tx.clone();
-    let kbd_thread = thread::spawn(move || {
-        let mut keyboard = Device::open(KEYBOARD_PATH).unwrap();
-        loop {
-            for ev in keyboard.fetch_events().unwrap() {
-                tx2.send(ev).unwrap();
-            }
-        }
-    });
+    let kbd_reader = KbdEventReader::spawn(Arc::new(tx));
 
+    kbd_reader.join().unwrap();
     mouse_thread.join().unwrap();
-    kbd_thread.join().unwrap();
     handler_thread.join().unwrap();
 }
 

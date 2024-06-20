@@ -1,14 +1,18 @@
+[general_settings]
+read_mouse_events = true
+read_kbd_events = false
+
 [gamepad_settings]
 range = 1024
 fuzz = 0
 flat = 0
-resolution = 0
+resolution = 1
 
 [bindings]
 north = "w"
-east = "d"
+east = "a"
 south = "s"
-west = "a"
+west = "d"
 dpad_up = "up"
 dpad_down = "down"
 dpad_left = "left"
