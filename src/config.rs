@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use super::keys::KbdString;
 use crate::CONFIG_FILE_PATH;
+use crate::event_readers::{EventReader, KbdEventReader};
 use std::path::Path;
 use toml;
 use toml::de::Error;
@@ -37,8 +38,8 @@ impl Config {
 
 #[derive(Serialize, Deserialize)]
 pub struct GeneralSettings {
-    read_mouse_events: bool,
-    read_kbd_events: bool,
+    pub read_mouse_events: bool,
+    pub read_kbd_events: bool,
 }
 
 impl GeneralSettings {
@@ -89,7 +90,7 @@ impl Bindings {
 
             
             (Key::from_string(&self.select).unwrap(), Key::BTN_SELECT),
-            (Key::from_string(&self.dpad_right).unwrap(), Key::BTN_START),
+            (Key::from_string(&self.start).unwrap(), Key::BTN_START),
             (Key::from_string(&self.l1).unwrap(), Key::BTN_TL),
             (Key::from_string(&self.l2).unwrap(), Key::BTN_TL2),
             (Key::from_string(&self.r1).unwrap(), Key::BTN_TR),

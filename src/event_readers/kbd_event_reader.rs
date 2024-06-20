@@ -2,14 +2,14 @@ use std::sync::mpsc::Sender;
 use std::{thread, thread::JoinHandle};
 use evdev::{Device, InputEvent};
 use crate::KEYBOARD_PATH;
-use super::EventReader;
+use super::EventReaderTrait;
 use std::any::Any;
 
 pub struct KbdEventReader {
     thread: JoinHandle<()>,
 }
 
-impl EventReader for KbdEventReader {
+impl EventReaderTrait for KbdEventReader {
     fn spawn(tx: Sender<InputEvent>) -> Self {
         let thread = thread::spawn(move || {
             let mut device = Device::open(KEYBOARD_PATH).unwrap();

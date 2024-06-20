@@ -6,7 +6,7 @@ mod button;
 mod config;
 
 use translators::{KeyTranslator, RelAxisTranslator};
-use event_readers::{ EventReader, KbdEventReader, AbsAxisEventReader };
+use event_readers::{ EventReaderTrait, KbdEventReader, MouseEventReader };
 use config::{ Config, GamepadSettings };
 use event_handler::EventHandler;
 use button::VALID_BUTTONS;
@@ -15,7 +15,7 @@ use evdev::{ uinput::VirtualDeviceBuilder, uinput::VirtualDevice, AbsInfo, Absol
 use std::sync::mpsc::channel;
 
 const CONFIG_FILE_PATH: &str = "config.toml";
-const MOUSE_PATH: &str = "/dev/input/event20";
+const MOUSE_PATH: &str = "/dev/input/event19";
 const KEYBOARD_PATH: &str = "/dev/input/event7";
 
 fn main() {
@@ -34,10 +34,12 @@ fn main() {
     event_handler.add_translator(Box::new(RelAxisTranslator::new(-range/2, range/2))).unwrap();
     event_handler.start(rx);
 
-    let kbd_reader = KbdEventReader::spawn(tx.clone());
-    let abs_axis_reader = AbsAxisEventReader::spawn(tx.clone());
+    if config.general_settings.read_kbd_events { // TODO: this is a temporary measure
+        KbdEventReader::spawn(tx.clone());
+    }
+    let abs_axis_reader = MouseEventReader::spawn(tx.clone());
 
-    kbd_reader.join().unwrap();
+    // kbd_reader.join().unwrap();
     abs_axis_reader.join().unwrap();
     event_handler.stop().unwrap();
 }

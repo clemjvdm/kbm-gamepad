@@ -2,14 +2,14 @@ use std::sync::mpsc::Sender;
 use std::{thread, thread::JoinHandle};
 use evdev::{Device, InputEvent};
 use crate::MOUSE_PATH;
-use super::EventReader;
+use super::EventReaderTrait;
 use std::any::Any;
 
-pub struct AbsAxisEventReader {
+pub struct MouseEventReader {
     thread: JoinHandle<()>,
 }
 
-impl EventReader for AbsAxisEventReader {
+impl EventReaderTrait for MouseEventReader {
     fn spawn(tx: Sender<InputEvent>) -> Self {
         let thread = thread::spawn(move || {
             let mut device = Device::open(MOUSE_PATH).unwrap();
