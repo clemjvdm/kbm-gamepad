@@ -1,5 +1,5 @@
-### This project is still under development.
-
+### kbm-gamepad
+kbm-gamepad is a tool for linux to translate keyboard and mouse inputs to a virtual gamepad. It's not finished, but I've stopped development on it for now. In the meantime I've made a much smaller tool to exclusively translate mouse inputs to joystick inputs [here](github.com/clemjvdm/mouse2joy).
 
 - [ ] Read from all mouse inputs
 - [ ] Config file serde default values
